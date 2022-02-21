@@ -1,11 +1,12 @@
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN">
 <html>
 <head>
-    <title>PONG INFERNO - jQuery Game by @joan16v</title>
+    <title>PONG INFERNO - jQuery Game by @joan16v - Harder than Flappy Bird</title>
     
-    <meta name="title" content="Pong Inferno" />
-    <meta name="description" content="Pong Inferno - pong in jquery" />
-    <meta name="keywords" content="pong, inferno, ponginferno, animate, animation, animating, dot, pong, jquery, drawing, dots, canvas, html5, javascript, jquery, howto, example, css, html, animation." />
+    <meta name="title" content="Pong Inferno - harder game than flappy bird" />
+    <meta name="description" content="Pong Inferno - A harder game than flappy bird! - what score you are able to do?" />
+    <meta name="keywords" content="pong, inferno, flappy, bird, flappybird, harder, hard, impossible, game, ponginferno, animate, animation, animating, dot, pong, jquery, drawing, dots, canvas, html5, javascript, jquery, howto, example, css, html, animation." />
     <meta name="robots" content="index,follow" />
     <meta name="googlebot" content="INDEX, FOLLOW" />    
     <meta name="OWNER" content="joan16v@gmail.com" />
@@ -13,9 +14,9 @@
     
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <link rel="shortcut icon" href="/test/pong.gif" />
+    <link rel="shortcut icon" href="/pong.gif" />
     
-    <script type='text/javascript' src='/scripts/jquery-1.4.1.min.js'></script>
+    <script type='text/javascript' src='/jquery-1.4.1.min.js'></script>
     <style>
         body {
         	font-size:11px;
@@ -23,6 +24,7 @@
         	color:#666;	
         	text-align:center;
         	background:#ccc;
+            overflow:hidden;
         }        
         #container {
         	position:relative;
@@ -31,15 +33,15 @@
         	margin:auto;
         	border:1px solid #ddd;
         	margin-top:10px;
-                margin-bottom:20px;
+            margin-bottom:20px;
         	padding:10px;
         	padding-top:5px;
         	background:#fff;
         	-moz-border-radius:8px;
-                -webkit-border-radius:8px;	
-                -moz-box-shadow: 2px 2px 8px #999; 
-                -webkit-box-shadow: 2px 2px 8px #999; 
-                box-shadow: 2px 2px 8px #999;    
+            -webkit-border-radius:8px;	
+            -moz-box-shadow: 2px 2px 8px #999; 
+            -webkit-box-shadow: 2px 2px 8px #999; 
+            box-shadow: 2px 2px 8px #999;  
         }  
         #foot {
         	position:relative;
@@ -50,10 +52,10 @@
         #debug {
         	position:relative;
         	width:300px;
-                height:100px;
+            height:100px;
         	text-align:left;
         	margin:auto;      
-                overflow:auto;      
+            overflow:auto;      
         }          
         #contenido {
             position:relative;
@@ -74,15 +76,15 @@
         #info {
             position:relative;
             float:left;
-            height:20px;
+            height:15px;
             color:#000;
             font-weight:bold;
             font-size:14px;
         }
         #cuadro {
             position:absolute;
-            top:<? echo intval(rand(1,500)); ?>px;
-            left:<? echo intval(rand(1,870)); ?>px;
+            top:279px;
+            left:388px;
             width:15px;
             height:15px;
             background:#fff;
@@ -95,7 +97,65 @@
             height:80px;
             background:#fff;
         }        
+        #gameover {
+            display:none;
+            font-size:80px;
+            font-weight:bold;
+            color:#fff;
+            position:absolute;
+            top:200px;
+            left:180px;
+            z-index:2;
+        }
+        #timer {
+            display:none;
+            font-size:80px;
+            font-weight:bold;
+            color:#fff;
+            position:absolute;
+            top:300px;
+            left:400px;
+            z-index:2;
+        }        
     </style>    
+    <script type="text/javascript">
+        (function($) {
+            $.sound = {
+            	tracks: {},
+            	enabled: true,
+            	template: function(src) {
+            		return '<embed style="height:0" loop="false" src="' + src + '" autostart="true" hidden="true" />';
+            	},
+            	play: function(url, options){
+            		if (!this.enabled)
+            			return;
+            		var settings = $.extend({
+            			url: url,
+            			timeout: 2000
+            		}, options);
+            		if(settings.track){
+            			if (this.tracks[settings.track]) {
+            				var current = this.tracks[settings.track];
+            				current.Stop && current.Stop();
+            				current.remove();
+            			}
+            		}
+            		var element = $.browser.msie
+            		  	? $('<bgsound/>').attr({
+            		        src: settings.url,
+            				loop: 1,
+            				autostart: true
+            		      })
+            		  	: $(this.template(settings.url));
+            		element.appendTo("body");
+            		if (settings.track) {
+            			this.tracks[settings.track] = element;
+            		}
+            		return element;
+            	}
+            };
+        })(jQuery);    
+    </script>    
     <script type="text/javascript"> 
         //variables
         var operation_x=0;
@@ -105,8 +165,11 @@
         var record=0;
         var anterior_x=0;
         var anterior_y=0;
+        var frames=0;
         //funciones
         function gol() {
+            $('#gameover').css("display","none");
+            $('#timer').css("display","none");
             $('#puntuacion').html(0);
             operation_x=1;
             var x=Math.floor(Math.random() * 870) + 1;
@@ -128,21 +191,32 @@
             var y_cuadro=parseInt($('#cuadro').position().top)+1;
             if( x_cuadro<0 ) {
                 //perder
-                if(colisiones>record) record=colisiones;    
+                $.sound.play('/gol.mp3');
+                if(colisiones>record) {
+                    record=colisiones;    
+                    update_twitter(); 
+                }    
                 colisiones=0;                
-                $('#info').html('TAPS: 0 - RECORD('+record+')');               
-                update_twitter(); 
+                $('#info').html('RECORD: '+record);               
                 stop_animation();
+                $('#gameover').css("display","block");
+                //$('#timer').css("display","block");
+                //count=5;
+                //counter=setInterval(timer, 1000);
+                //timer();
                 setTimeout("gol()",3000);
             }
             if( x_cuadro>845 ) {
                 operation_x=0;
+                $.sound.play('/fx1.mp3');
             }            
             if( y_cuadro<0 ) {
                 operation_y=1;
+                $.sound.play('/fx1.mp3');
             }
             if( y_cuadro>475 ) {
                 operation_y=0;
+                $.sound.play('/fx1.mp3');
             }
             if( operation_x==0 ) {
                 x_cuadro=x_cuadro-incremento;    
@@ -162,6 +236,7 @@
             var real_dif1=(x_rectangulo-x_cuadro);
             var real_dif2=(y_rectangulo-y_cuadro);            
             if( dif1<20 && dif2<80 && real_dif2<20 ) {
+                $.sound.play('/ping.mp3');
                 //al producirse colision, cambiamos la operacion
                 if(operation_x==0){
                     operation_x=1;
@@ -176,9 +251,10 @@
                         operation_y=0;
                     }                      
                 }     
-                colisiones++;
+                if( frames>10 ) colisiones++;
                 $('#puntuacion').html(colisiones);      
-                $('#info').html('TAPS: '+colisiones+' - RECORD('+record+')');   
+                $('#info').html('RECORD: '+record);   
+                frames=0;
             }
             $('#cuadro').animate({ 
                 'left': x_cuadro,
@@ -186,6 +262,7 @@
             },0.0001);
             anterior_x=x_cuadro;
             anterior_y=y_cuadro;
+            frames++;
         }
         var refreshId;
         function start_animation() {
@@ -213,18 +290,47 @@
             $('#rectangulo').animate({ 
                 'top': y 
             },0.0001);                
+        }     
+        function mover_arriba2x() {
+            var y=parseInt($('#rectangulo').position().top);
+            y=y-100;         
+            if( y<0 ) y=0;       
+            $('#rectangulo').animate({ 
+                'top': y 
+            },0.0001);               
+        }
+        function mover_abajo2x() {
+            var y=parseInt($('#rectangulo').position().top);
+            y=y+100;      
+            if( y>430 ) y=430;          
+            $('#rectangulo').animate({ 
+                'top': y 
+            },0.0001);                
+        }            
+        var count=3;        
+        var counter=setInterval(timer, 1000); //1000 will  run it every 1 second        
+        function timer()
+        {
+          count=count-1;
+          var show=count-1;
+          if (count <= 0)
+          {
+             clearInterval(counter);
+             //counter ended, do something here
+             return;
+          }        
+          //Do code for showing the number of seconds here
+          $('#timer').html(show);
         }        
         function update_twitter() {
-            // Remove existing iframe
             $('#twitter_button iframe').remove();
-            // Generate new markup
             var tweetBtn = $('<a></a>')
                 .addClass('twitter-share-button')
                 .attr('href', 'http://twitter.com/share')
                 .attr('data-url', 'http://bit.ly/1faX5IZ')
                 .attr('data-count',"none")
                 .attr('onclick',"return !window.open(this.href, 'tweet', 'menubar=no')")
-                .attr('data-text', 'He hecho un record de '+record+' en Pong Inferno! #ponginferno');
+                .attr('data-text', 'I scored '+record+' in PONG INFERNO! #ponginferno harder game than #flappybird');
             $('#twitter_button').append(tweetBtn);
             twttr.widgets.load();            
         }
@@ -235,34 +341,26 @@
             if (e.keyCode == 40) {
                 mover_abajo(); 
             }
-        });                 
+        });       
+        function reload_ads() {
+        }
+        $(document).ready(function(e) {    
+            var refresh_ads = setInterval("reload_ads()",120000);
+        });       
+        function save_ranking() {
+            var ajax_url='/pong_save_ranking.php';
+            $.ajax({
+                url:ajax_url, type:'POST', data:'name='+document.getElementById('nombre_ranking').value+'&record='+record, beforeSend: function(){                 
+                },
+                success:function(datos) { 
+                    alert("OK! RECORD SENT! GO TO RANKINGS TO SEE YOUR POSITION.")
+                    //alert(datos);
+                }
+            });            
+        }             
     </script>     
 </head>    
 <body>
-
-    <div id="div_ad1" style="position: fixed; top:20px; left:20px; width:160px; height:600px;">
-        <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
-        <!-- Banner grande -->
-        <ins class="adsbygoogle"
-             style="display:inline-block;width:160px;height:600px"
-             data-ad-client="ca-pub-3515563323670978"
-             data-ad-slot="4273226871"></ins>
-        <script>
-        (adsbygoogle = window.adsbygoogle || []).push({});
-        </script>
-    </div>
-    
-    <div id="div_ad2" style="position: fixed; top:20px; right:20px; width:160px; height:600px;">
-        <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
-        <!-- Banner2 -->
-        <ins class="adsbygoogle"
-             style="display:inline-block;width:160px;height:600px"
-             data-ad-client="ca-pub-3515563323670978"
-             data-ad-slot="2656892878"></ins>
-        <script>
-        (adsbygoogle = window.adsbygoogle || []).push({});
-        </script>
-    </div>
 
     <div id="container">
         <h1 style="text-align: center;">PONG INFERNO</h1>
@@ -270,24 +368,39 @@
             <div id="rectangulo"></div>
             <div id="cuadro"></div>
             <div id="puntuacion">0</div>
+            <div id="gameover">GAME OVER</div>
+            <div id="timer"></div>
         </div>
         <div>
-            <div id="info" style="margin-left: 10px;">TAPS: 0</div>    
+            <div id="info" style="margin-left: 10px;">RECORD: 0</div>    
             <div style="position: relative; float:right; text-align:right; margin-right:20px;">            
-                <div>Twittear tu record:</div>
+                <div style="margin-bottom: 5px;">Tweet your record:</div>
                 <div id="twitter_button">
-                    <a id="twitter_link" href="http://twitter.com/share" class="twitter-share-button" data-count="none" data-url="http://bit.ly/1faX5IZ" data-text="He hecho un record de 0 en Pong Inferno! #ponginferno" data-lang="es">Twittear</a>                    
+                    <a id="twitter_link" href="http://twitter.com/share" class="twitter-share-button" data-count="none" data-url="http://bit.ly/1faX5IZ" data-text="I scored 0 in PONG INFERNO! #ponginferno harder game than #flappybird" data-lang="es">Tweet</a>                    
                 </div>
                 <script type="text/javascript" src="http://platform.twitter.com/widgets.js"></script>                
-            </div>            
+            </div> 
+            <div style="clear: both;"><!-- sep --></div>
+            <div style="text-align: center; margin-left:230px;">
+                <table>
+                    <tr>
+                        <td>Your Name: </td>
+                        <td><input type="text" name="nombre" id="nombre_ranking" autocomplete="off" /></td>
+                        <td><input type="button" value="SEND RECORD" onclick="save_ranking();" /></td>
+                        <td>[ <a title="PONG INFERNO RANKING" href="/test/pong_ranking.php" style="color: #000; text-decoration:none;" target="_blank">RANKINGS</a> ]</td>
+                    </tr>
+                </table>                
+            </div>           
             <div style="clear: both;"><!-- sep --></div>
         </div>
+        
+                
     </div>
     <div id="foot">
         by <a style="text-decoration: none; color: #000; font-weight:bold;" href="http://joan16v.com.es">joan16v</a>
     </div>
     <div id="debug">
-    </div>
+    </div>  
 
  </body>
 
